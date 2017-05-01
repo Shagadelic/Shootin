@@ -57,21 +57,27 @@ void *smallProjectile(void *cPVals) {
 			
 	}
 
+	mvprintw(1, 1, "TEST: %d", dir);
+
 	if (dir & 1) {	//WEST or EAST
 		while ((x != limit) && !collision) { 
 			// T: WEST, F: EAST 
 			x = (dir & 2) ? x - 1 : x + 1; 
 			mvprintw(y, x, ".");
-			usleep(PROJECTILE_SPEED);
+			// usleep(PROJECTILE_SPEED);
+			sleep(1);
 		}
 	} else {
 		while ((y != limit) && !collision) { 
 			// T: SOUTH F: NORTH
-			y = (dir & 2) ? y - 1 : y + 1; 
+			y = (dir & 2) ? y + 1 : y - 1; 
 			mvprintw(y, x, ".");
-			usleep(PROJECTILE_SPEED);
+			// usleep(PROJECTILE_SPEED);
+			sleep(1);
 		}
 	}
+
+	pthread_exit(NULL);
 }
 
 int collisionCheck(int x, int y, short dir) {
@@ -90,67 +96,76 @@ void actionPoll(int startX, int startY, short startDir) {
 
 	while (!GAME_OVER) {
 		threadCount = (threadCount = MAX_PROJECTILE) ? 0 : threadCount;
+		drawMainChar(mainCharX, mainCharY, mainCharDir, 1);
 		if (kbhit()) {
 			curPress = getch();
 			switch(curPress){
 				case KEY_UP: 
 					if (collisionCheck(mainCharX, mainCharY - 1, NORTH))
-						mainCharY++;
-						dir = NORTH;
+						mainCharY--;
+						mainCharDir = NORTH;
 					break;
 				case KEY_DOWN:
 					if (collisionCheck(mainCharX, mainCharY + 1, NORTH))
 						mainCharY++;
-						dir = SOUTH
+						mainCharDir = SOUTH;
 					break;
 				case KEY_LEFT:
 					if (collisionCheck(mainCharX - 1, mainCharY, NORTH))
 						mainCharX--;	
-						dir = WEST;
+						mainCharDir = WEST;
 					break;
 				case KEY_RIGHT:
 					if (collisionCheck(mainCharX - 1, mainCharY, NORTH))
 						mainCharX++;
-						dir = EAST;
+						mainCharDir = EAST;
 					break;
 				case 'z':
 					curPVals = (projectileVals *)
 						malloc(sizeof(projectileVals));
-					curPVals->x = mainCharX;
-					curPVals->y = mainCharY;
+					curPVals->x = mainCharX + 1;
+					curPVals->y = mainCharY + 1;
 					curPVals->dir = mainCharDir;
 
-					pthread_create(projectile[threadCount++],
+					if (pthread_create(projectile[threadCount++],
 						NULL, smallProjectile,
-						(void *) curPVals);
+						(void *) curPVals) != 0) {
+						perror("pthread_create() error");
+						exit(1);
+					}
 					break;
 				case 'x':
 					break;
 				default:
 					break;
 			}
-			mvprintw(mainCharY, mainCharX, "M");
-			switch(mainCharDir) {
-				case NORTH: 	
-					mvprintw(mainCharY + 1, mainCharX, "^");
-					break;	
-				case EAST: 	
-					mvprintw(mainCharY, mainCharX + 1, ">");
-					break;
-				case SOUTH: 	
-					mvprintw(mainCharY - 1, mainCharX, "_");
-					break;
-				case WEST:	
-					mvprintw(mainCharY, mainCharX - 1, "<");
-					break;
-				default: 
-					printw("Invalid direction (smallProjectile())");	
-					return;
-
-			}
-			
-			refresh();
 		}
+		// once new coordinates have been determined, draw the screen
+		drawPlayField(NULL);	
+		drawMainChar(mainCharX, mainCharY, mainCharDir, 0);
+		refresh();
+
+	}
+}
+
+void drawMainChar(int x, int y, short dir, short clear) {
+	mvprintw(y, x, clear ? " " : "M");
+	switch(dir) {
+		case NORTH: 	
+			mvprintw(y - 1, x, clear ? " " : "^");
+			break;	
+		case EAST: 	
+			mvprintw(y, x + 1, clear ? " " : ">");
+			break;
+		case SOUTH: 	
+			mvprintw(y + 1, x, clear ? " " : "_");
+			break;
+		case WEST:	
+			mvprintw(y, x - 1, clear ? " " : "<");
+			break;
+		default: 
+			printw("Invalid direction (smallProjectile())");	
+			return;
 	}
 }
 
@@ -177,21 +192,22 @@ int main() {
 	keypad(stdscr, TRUE);
 	noecho();
 	nonblock(NB_ENABLE);
-	while (1) {
+	// while (1) {
 	drawPlayField(NULL);
 	refresh();
-	}
+	// }
 	
-	/* actionProc = fork();
+	actionProc = fork();
 	if (actionProc == 0) {
-		actionPoll(rand() % 50, rand() % 50, (short) rand() % 4);
+		actionPoll(rand() % FIELD_X, rand() % FIELD_Y, (short) rand() % 4);
 		exit(0);
 	} else {
 		while (1);
 	}
 
 	nonblock(NB_DISABLE);	
-	endwin(); */
+	endwin();
+
 	return 0;
 }
 
