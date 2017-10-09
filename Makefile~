@@ -1,0 +1,18 @@
+CXXLFLAGS = `guile-config compile` std=c++11 -Wall -Wextra -g
+LIBS = `guile-config link` -lGL -lGLU -lglfw3 -lX11 -lXxf86vm -lXrandr -pthread -lXi -ldl
+
+.PHONY: clean build run
+
+build: first
+
+clean:
+	rm -f first first.o
+
+run: first
+	./first
+
+first: first.o
+	g++ $< -o $@ $(LIBS)
+
+first.o: first.cpp
+	g++ -c $< -o $@ $(CXXFLAGS)
